@@ -1,0 +1,91 @@
+# Kindly taken from https://github.com/robbert-vdh/nih-plug/blob/master/.github/workflows/build.yml
+name: Automated Builds
+
+on:
+  release:
+    types: [ created ]
+#on:
+#  push:
+#    branches:
+#      - '**'
+#    tags:
+#      - '*'
+#  pull_request:
+#    branches:
+#      - master
+#  workflow_dispatch:
+
+defaults:
+  run:
+    # This otherwise gets run under dash which does not support brace expansion
+    shell: bash
+
+jobs:
+  package:
+    permissions: write-all
+    strategy:
+      matrix:
+        include:
+          - { name: ubuntu-22.04,    os: ubuntu-22.04,   archive: tar.gz, cross-target: '' }
+          - { name: macos-universal, os: macos-latest,   archive: zip,    cross-target: x86_64-apple-darwin }
+          - { name: windows,         os: windows-latest, archive: zip,    cross-target: '' }
+    name: Build binaries
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch all git history
+        run: git fetch --force --prune --tags --unshallow
+
+#      - name: Install dependencies
+#        if: startsWith(matrix.os, 'ubuntu')
+#        run: |
+#          sudo apt-get update
+#          sudo apt-get install -y libasound2-dev libgl-dev libjack-dev libx11-xcb-dev  libxcb1-dev libxcb-dri2-0-dev libxcb-icccm4-dev libxcursor-dev libxkbcommon-dev libxcb-shape0-dev libxcb-xfixes0-dev
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ matrix.name }}-${{ matrix.cross-target }}
+
+      - name: Set up Rust toolchain
+        # Needed for SIMD
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          # The macOS AArch64 build is done from an x86_64 macOS CI runner, so
+          # it needs to be cross compiled
+          targets: ${{ matrix.cross-target }}
+      - name: Build executable
+        run: |
+          runner_name=${{ matrix.name }}
+          cross_target=${{ matrix.cross-target }}
+          cargo build --target $cross_target --release
+      - name: Determine build name
+        run: |
+          echo "ARCHIVE_NAME=docker-puller-$(cargo pkgid | cut -d "#" -f2)-${{ matrix.name }}" >> "$GITHUB_ENV"
+      - name: Move resulting executable into a directory
+        run: |
+          # GitHub Action strips the top level directory, great, have another one
+          mkdir -p "$ARCHIVE_NAME/$ARCHIVE_NAME"
+          mv target/bundled/* "$ARCHIVE_NAME/$ARCHIVE_NAME"
+      - name: Archive plugin files
+        if: startsWith(matrix.os, 'ubuntu')
+        run: tar czf "$ARCHIVE_NAME".${{ matrix.archive }} --directory="$ARCHIVE_NAME" .
+      - name: Archive plugin files
+        if: startsWith(matrix.os, 'macos')
+        run: zip -r "$ARCHIVE_NAME".${{ matrix.archive }} "$ARCHIVE_NAME"
+      - name: Archive plugin files
+        if: startsWith(matrix.os, 'windows')
+        shell: powershell
+        run: Compress-Archive -Path "$env:ARCHIVE_NAME/*" -Destination "$env:ARCHIVE_NAME.${{ matrix.archive }}"
+      - name: Upload archives to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ${{ env.ARCHIVE_NAME }}.${{ matrix.archive }}
+          asset_name: ${{ env.ARCHIVE_NAME }}.${{ matrix.archive }}
+          tag: ${{ github.ref }}
+          overwrite: true
