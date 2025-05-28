@@ -31,7 +31,7 @@ jobs:
           - { name: windows,               os: windows-latest, archive: zip,    cross-target: '' }
           - { name: linux-arm64,           os: ubuntu-22.04,   archive: tar.gz, cross-target: aarch64-unknown-linux-gnu }
           - { name: macos-universal-arm64, os: macos-latest,   archive: zip,    cross-target: aarch64-apple-darwin }
-          - { name: windows-arm64,         os: windows-latest, archive: zip,    cross-target: aarch64-pc-windows-mscc }
+          - { name: windows-arm64,         os: windows-latest, archive: zip,    cross-target: aarch64-pc-windows-msvc }
     name: Build binaries
     runs-on: ${{ matrix.os }}
     steps:
@@ -55,11 +55,8 @@ jobs:
           key: ${{ matrix.name }}-${{ matrix.cross-target }}
 
       - name: Set up Rust toolchain
-        # Needed for SIMD
         uses: dtolnay/rust-toolchain@nightly
         with:
-          # The macOS AArch64 build is done from an x86_64 macOS CI runner, so
-          # it needs to be cross compiled
           targets: ${{ matrix.cross-target }}
       - name: Build executable
         if: matrix.cross-target == ''
