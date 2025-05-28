@@ -1,6 +1,8 @@
 # Docker puller
 
 ## Installation
+Download the executable for your platform from [the releases](https://github.com/Davvos11/docker-puller/releases).
+
 Build using `cargo build --release`,
 copy the executable from `target/release/docker-puller` to anywhere you want to use this.
 
