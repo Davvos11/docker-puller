@@ -30,6 +30,9 @@ Options:
 Clients can make a get request to the server with the following paramters:
 `?service=<SERVICE_NAME>&path=<PATH>&token=<TOKEN>`, where `path` is optional.
 
+## GitHub Actions
+For an example on how to use this in a GitHub Actions flow, see [this example](https://github.com/Davvos11/trein-schaduw/blob/master/.github/workflows/publish.yml).
+
 ## Systemd
 You can also use the `docker-puller.service` file.
 Make sure to uncomment the `Environment=` line and to set the `SECRET`.
