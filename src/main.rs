@@ -1,26 +1,74 @@
+use crate::error::DockerError;
 use clap::Parser;
+use rouille::Response;
 use std::ffi::OsStr;
 use std::fmt::Display;
 use std::path::{Path, PathBuf};
-use std::process::{Command, exit};
+use std::process::{exit, Command};
+
+mod error;
 
 #[derive(Parser)]
 #[command(version, about)]
-struct Args {
-    service_name: String,
+enum Args {
+    Cli {
+        service_name: String,
 
-    #[arg(short, long)]
-    path: Option<PathBuf>,
+        #[arg(short, long)]
+        path: Option<PathBuf>,
+    },
+    Server {},
 }
 
 fn main() {
     let args = Args::parse();
 
-    run("docker", ["compose", "pull", args.service_name.as_str()], args.path.clone());
-    run("docker", ["compose", "up", "-d", args.service_name.as_str()], args.path.clone());
+    match args {
+        Args::Cli { service_name, path } => {
+            if let Err(err) = pull_and_up(service_name, path) {
+                eprintln!("{}", err);
+                if let DockerError::Command { status, .. } = err {
+                    exit(status)
+                }
+            }
+        }
+        Args::Server {} => {
+            println!("Starting server on http://0.0.0.0:8080");
+            rouille::start_server("0.0.0.0:8080", move |request| {
+                let service_name = request.get_param("service");
+                let path = request.get_param("path");
+                if let Some(service_name) = service_name {
+                    if let Err(err) = pull_and_up(service_name, path) {
+                        Response::text(err.to_string()).with_status_code(500)
+                    } else {
+                        Response::text("Done")
+                    }
+                } else {
+                    Response::text("Please provide the `service` parameter").with_status_code(400)
+                }
+            });
+        }
+    }
 }
 
-fn run<I, S, P>(program: S, args: I, path: Option<P>) 
+fn pull_and_up<P: AsRef<Path> + Clone>(
+    service_name: String,
+    path: Option<P>,
+) -> Result<(), DockerError> {
+    run(
+        "docker",
+        ["compose", "pull", service_name.as_str()],
+        path.clone(),
+    )?;
+    run(
+        "docker",
+        ["compose", "up", "-d", service_name.as_str()],
+        path.clone(),
+    )?;
+    Ok(())
+}
+
+fn run<I, S, P>(program: S, args: I, path: Option<P>) -> Result<(), DockerError>
 where
     I: IntoIterator<Item = S> + Clone,
     S: AsRef<OsStr> + Display,
@@ -31,16 +79,19 @@ where
     if let Some(path) = path.clone() {
         cmd.current_dir(path);
     }
-    let status = cmd
-        .status()
-        .expect("Failed to execute command");
+    let status = cmd.status()?;
     if !status.success() {
         let args: Vec<_> = args.into_iter().map(|x| x.to_string()).collect();
         let arg_str = args.join(" ");
         let path_str = if let Some(path) = path {
             format!(" at {}", path.as_ref().to_str().unwrap_or_default())
-        } else { String::new() };
-        eprintln!("Failed to execute: `{program} {arg_str}`{path_str}");
-        exit(status.code().unwrap_or(1));
+        } else {
+            String::new()
+        };
+        return Err(DockerError::Command {
+            command: format!("`{program} {arg_str}`{path_str}"),
+            status: status.code().unwrap_or(1),
+        });
     }
+    Ok(())
 }
