@@ -34,4 +34,7 @@ Clients can make a get request to the server with the following paramters:
 You can also use the `docker-puller.service` file.
 Make sure to uncomment the `Environment=` line and to set the `SECRET`.
 
+If you are using private registries that you need to be signed in for, change the `User=` line to the correct user.
+Otherwise, you can comment it out.
+
 Place it in `/etc/systemd/system/docker-puller.service` and run `sudo systemctl enable --now docker-puller`.
