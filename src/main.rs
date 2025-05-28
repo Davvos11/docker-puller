@@ -4,7 +4,7 @@ use rouille::Response;
 use std::ffi::OsStr;
 use std::fmt::Display;
 use std::path::{Path, PathBuf};
-use std::process::{exit, Command};
+use std::process::{Command, exit};
 
 mod error;
 
@@ -33,8 +33,17 @@ fn main() {
             }
         }
         Args::Server {} => {
+            let secret = std::env::var("SECRET").expect("SECRET env variable must be set");
             println!("Starting server on http://0.0.0.0:8080");
             rouille::start_server("0.0.0.0:8080", move |request| {
+                if let Some(token) = request.get_param("token") {
+                    if token != secret {
+                        return Response::text("Incorrect token").with_status_code(401);
+                    }
+                } else {
+                    return Response::text("Please provide the `token` parameter")
+                        .with_status_code(401);
+                }
                 let service_name = request.get_param("service");
                 let path = request.get_param("path");
                 if let Some(service_name) = service_name {
