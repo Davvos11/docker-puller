@@ -76,7 +76,7 @@ jobs:
         run: |
           # GitHub Action strips the top level directory, great, have another one
           mkdir -p "$ARCHIVE_NAME/$ARCHIVE_NAME"
-          mv target/bundled/* "$ARCHIVE_NAME/$ARCHIVE_NAME"
+          mv target/${{ matrix.cross-target }}/release/docker-puller "$ARCHIVE_NAME/$ARCHIVE_NAME"
       - name: Archive plugin files
         if: startsWith(matrix.os, 'ubuntu')
         run: tar czf "$ARCHIVE_NAME".${{ matrix.archive }} --directory="$ARCHIVE_NAME" .
