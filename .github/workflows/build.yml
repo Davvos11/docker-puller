@@ -26,12 +26,12 @@ jobs:
     strategy:
       matrix:
         include:
-          - { name: linux,                 os: ubuntu-22.04,   archive: tar.gz, cross-target: '' }
-          - { name: macos-universal,       os: macos-latest,   archive: zip,    cross-target: x86_64-apple-darwin }
-          - { name: windows,               os: windows-latest, archive: zip,    cross-target: '' }
-          - { name: linux-arm64,           os: ubuntu-22.04,   archive: tar.gz, cross-target: aarch64-unknown-linux-gnu }
-          - { name: macos-universal-arm64, os: macos-latest,   archive: zip,    cross-target: aarch64-apple-darwin }
-          - { name: windows-arm64,         os: windows-latest, archive: zip,    cross-target: aarch64-pc-windows-msvc }
+          - { name: linux,                 os: ubuntu-22.04,   archive: tar.gz, command: cargo, cross-target: '' }
+          - { name: macos-universal,       os: macos-latest,   archive: zip,    command: cargo, cross-target: x86_64-apple-darwin }
+          - { name: windows,               os: windows-latest, archive: zip,    command: cargo, cross-target: '' }
+          - { name: linux-arm64,           os: ubuntu-22.04,   archive: tar.gz, command: cross, cross-target: aarch64-unknown-linux-gnu }
+          - { name: macos-universal-arm64, os: macos-latest,   archive: zip,    command: cross, cross-target: aarch64-apple-darwin }
+          - { name: windows-arm64,         os: windows-latest, archive: zip,    command: cross, cross-target: aarch64-pc-windows-msvc }
     name: Build binaries
     runs-on: ${{ matrix.os }}
     steps:
@@ -58,17 +58,23 @@ jobs:
         uses: dtolnay/rust-toolchain@nightly
         with:
           targets: ${{ matrix.cross-target }}
+      - name: Install Cross
+        if: matrix.command == 'cross'
+        shell: bash
+        run: |
+          curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+          cargo binstall --no-confirm cross
       - name: Build executable
         if: matrix.cross-target == ''
         run: |
           runner_name=${{ matrix.name }}
-          cargo build --release
+          ${{ matrix.command }} build --release
       - name: Build executable
         if: matrix.cross-target != ''
         run: |
           runner_name=${{ matrix.name }}
           cross_target=${{ matrix.cross-target }}
-          cargo build --target $cross_target --release
+          ${{ matrix.command }} build --target $cross_target --release
       - name: Determine build name
         run: |
           echo "ARCHIVE_NAME=docker-puller-$(cargo pkgid | cut -d "#" -f2)-${{ matrix.name }}" >> "$GITHUB_ENV"
