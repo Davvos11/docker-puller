@@ -64,6 +64,7 @@ jobs:
           runner_name=${{ matrix.name }}
           cargo build --release
       - name: Build executable
+        if: matrix.cross-target != ''
         run: |
           runner_name=${{ matrix.name }}
           cross_target=${{ matrix.cross-target }}
