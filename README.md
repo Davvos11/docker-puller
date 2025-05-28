@@ -29,3 +29,9 @@ Options:
 ```
 Clients can make a get request to the server with the following paramters:
 `?service=<SERVICE_NAME>&path=<PATH>&token=<TOKEN>`, where `path` is optional.
+
+## Systemd
+You can also use the `docker-puller.service` file.
+Make sure to uncomment the `Environment=` line and to set the `SECRET`.
+
+Place it in `/etc/systemd/system/docker-puller.service` and run `sudo systemctl enable --now docker-puller`.

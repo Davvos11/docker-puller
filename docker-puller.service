@@ -1,0 +1,12 @@
+[Unit]
+Description=Docker Puller webservice
+After=multi-user.target
+
+[Service]
+ExecStart=/home/david/docker-puller server -p 8080
+Type=simple
+Restart=on-failure
+#Environment="SECRET=some_secret"
+
+[Install]
+WantedBy=default.target
