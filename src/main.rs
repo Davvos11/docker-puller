@@ -17,7 +17,10 @@ enum Args {
         #[arg(short, long)]
         path: Option<PathBuf>,
     },
-    Server {},
+    Server {
+        #[arg(short, long)]
+        port: Option<u16>,
+    },
 }
 
 fn main() {
@@ -32,10 +35,11 @@ fn main() {
                 }
             }
         }
-        Args::Server {} => {
+        Args::Server { port } => {
             let secret = std::env::var("SECRET").expect("SECRET env variable must be set");
-            println!("Starting server on http://0.0.0.0:8080");
-            rouille::start_server("0.0.0.0:8080", move |request| {
+            let host = format!("0.0.0.0:{}", port.unwrap_or(8080));
+            println!("Starting server on https://{host}");
+            rouille::start_server(host, move |request| {
                 if let Some(token) = request.get_param("token") {
                     if token != secret {
                         return Response::text("Incorrect token").with_status_code(401);
